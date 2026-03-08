@@ -455,16 +455,33 @@ function handleAdminClick() {
   else { document.getElementById('login-modal-overlay').classList.add('open'); setTimeout(function(){ document.getElementById('login-username').focus(); },100); }
 }
 
-function doLogin() {
-  var u = document.getElementById('login-username').value.trim();
+async function doLogin() {
   var p = document.getElementById('login-password').value;
-  if (u === ADMIN_USER && p === ADMIN_PASS) {
-    closeLoginModal(); setAdminMode(true); showToast('✓ Logged in as admin');
-  } else {
-    var el = document.getElementById('login-password');
-    el.classList.add('input-error'); el.value = '';
-    setTimeout(function(){ el.classList.remove('input-error'); }, 2000);
-    showToast('Incorrect credentials');
+  if (!p) { showToast('Please enter password'); return; }
+  
+  try {
+    var res = await fetch(ADMIN_FUNCTIONS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: p })
+    });
+    var data = await res.json();
+    
+    if (data.success) {
+      localStorage.setItem('af_admin_token', data.token);
+      localStorage.setItem('af_admin_expiry', data.expiry);
+      closeLoginModal(); 
+      setAdminMode(true); 
+      showToast('✓ Logged in as admin');
+    } else {
+      var el = document.getElementById('login-password');
+      el.classList.add('input-error'); el.value = '';
+      setTimeout(function(){ el.classList.remove('input-error'); }, 2000);
+      showToast('Incorrect password');
+    }
+  } catch (e) {
+    console.error('Login error:', e);
+    showToast('Error connecting to server');
   }
 }
 
