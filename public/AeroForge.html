@@ -775,7 +775,7 @@ function submitProduct() {
         products[i].category = category;
         products[i].desc = desc;
         products[i].price = price;
-        products[i].emoji = EMOJI_MAP[category] || '✈';
+        products[i].emoji = '';
         if(pendingSTLName) products[i].stlName = pendingSTLName;
         if(pendingSTLData) products[i].stlFile = pendingSTLData;
         products[i].images = pendingImages.filter(Boolean);
