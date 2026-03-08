@@ -363,9 +363,8 @@ var currentModalProduct = null;
 var modalGalleryIndex = 0;
 var aboutText = "Hi! I'm a passionate RC plane designer and maker. I've been designing 3D-printable accessories for fixed-wing aircraft for over 5 years.\n\nEvery part in this library has been flight-tested and optimised for FDM printing. I focus on functional design — parts that are lightweight, strong, and easy to assemble.\n\nMy designs range from scale cockpit details to functional landing gear, servo mounts, and propeller guards. All files are print-ready with supports pre-configured.\n\nFeel free to reach out if you need custom parts for your specific airframe!";
 
-var ADMIN_USER = 'admin';
-var ADMIN_PASS = 'aeroforge2024';
 var EMOJI_MAP = {'Landing Gear':'⚙','Cockpit':'✈','Propellers':'🔄','Airframe':'🔧','Electronics':'📡','Other':'✈'};
+var ADMIN_FUNCTIONS_URL = 'https://nutykurygqsstabxgaqj.supabase.co/functions/v1/verify-admin';
 
 // ===== INIT =====
 async function init() {
