@@ -447,13 +447,11 @@ function setAdminMode(on, persist) {
     bar.classList.add('visible');
     editBtn.style.display = 'block';
     grid.classList.add('admin-mode');
-    if (persist !== false) localStorage.setItem('af_admin_session','true');
   } else {
     btn.classList.remove('logged-in'); btn.textContent = '⚙ ADMIN';
     bar.classList.remove('visible');
     editBtn.style.display = 'none';
     grid.classList.remove('admin-mode');
-    if (persist !== false) localStorage.removeItem('af_admin_session');
   }
   // Re-render so delete badges appear/disappear
   filterProducts();
