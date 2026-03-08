@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zephyr 3D — Plane Accessories</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -338,8 +337,9 @@ ZEPHYR 3D
 <div class="login-modal-overlay" id="login-modal-overlay" onclick="if(event.target===this)closeLoginModal()">
   <div class="login-modal">
     <h3>ADMIN LOGIN</h3>
-    <p>Enter your admin password to manage accessories.</p>
+    <p>Sign in to manage your accessories and edit the about page.</p>
     <div class="login-form">
+      <input class="form-input" type="text" id="login-username" placeholder="Username" autocomplete="off">
       <input class="form-input" type="password" id="login-password" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
       <button class="login-btn" onclick="doLogin()">Sign In</button>
       <button class="login-cancel" onclick="closeLoginModal()">Cancel</button>
@@ -350,11 +350,6 @@ ZEPHYR 3D
 <div class="toast" id="toast"></div>
 
 <script>
-// ===== SUPABASE CLIENT =====
-var SUPABASE_URL = 'https://nutykurygqsstabxgaqj.supabase.co';
-var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51dHlrdXJ5Z3Fzc3RhYnhnYXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NTM2NTcsImV4cCI6MjA4ODUyOTY1N30.4VOK32RNVNmKtILwCpZOxr5qST9rBwoetWaUDti3gT8';
-var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 // ===== STATE =====
 var isAdmin = false;
 var products = [];
@@ -362,65 +357,38 @@ var currentModalProduct = null;
 var modalGalleryIndex = 0;
 var aboutText = "Hi! I'm a passionate RC plane designer and maker. I've been designing 3D-printable accessories for fixed-wing aircraft for over 5 years.\n\nEvery part in this library has been flight-tested and optimised for FDM printing. I focus on functional design — parts that are lightweight, strong, and easy to assemble.\n\nMy designs range from scale cockpit details to functional landing gear, servo mounts, and propeller guards. All files are print-ready with supports pre-configured.\n\nFeel free to reach out if you need custom parts for your specific airframe!";
 
+var ADMIN_USER = 'admin';
+var ADMIN_PASS = 'aeroforge2024';
 var EMOJI_MAP = {'Landing Gear':'⚙','Cockpit':'✈','Propellers':'🔄','Airframe':'🔧','Electronics':'📡','Other':'✈'};
-var ADMIN_FUNCTIONS_URL = 'https://nutykurygqsstabxgaqj.supabase.co/functions/v1/verify-admin';
+
+var SEED = [
+  {id:1,name:'Tricycle Landing Gear Mount',category:'Landing Gear',desc:'Parametric tricycle gear mount. Fits 10–15mm carbon tubes. Print in PETG or ABS. Includes tow hook receiver.',price:3.99,emoji:'⚙',stlName:'tricycle_gear_v3.stl',images:[],badge:'POPULAR'},
+  {id:2,name:'Scale Cockpit Tub (1/10)',category:'Cockpit',desc:'Detailed cockpit interior with instrument panel, pilot seat, and rudder pedals. Scale 1:10. Print at 0.15mm for best detail.',price:6.49,emoji:'✈',stlName:'cockpit_tub_1_10.stl',images:[],badge:null},
+  {id:3,name:'8" Propeller Guard Ring',category:'Propellers',desc:'Lightweight prop guard for 8" folding propellers. 47g printed in PLA. Snap-on mount system, no tools needed.',price:2.49,emoji:'🔄',stlName:'prop_guard_8in.stl',images:[],badge:'NEW'},
+  {id:4,name:'Servo Tray — Standard Size',category:'Airframe',desc:'Universal servo tray mount for MG90S and similar standard servos. Dual-locking system, vibration dampened.',price:1.99,emoji:'🔧',stlName:'servo_tray_std.stl',images:[],badge:null},
+  {id:5,name:'Antenna Mount — 90° Tilt',category:'Electronics',desc:'Two-position adjustable antenna mount, 0° or 90° tilt. Compatible with most video transmitter antennas.',price:1.49,emoji:'📡',stlName:'antenna_mount_tilt.stl',images:[],badge:null},
+  {id:6,name:'Canopy Latch System',category:'Airframe',desc:'Magnetic canopy retention system. Clean, tool-free canopy removal. Includes female receiver and latch arm.',price:2.99,emoji:'🔒',stlName:'canopy_latch_v2.stl',images:[],badge:null}
+];
 
 // ===== INIT =====
-async function init() {
-  // Load products from Supabase
-  await loadProductsFromDB();
-  
+function init() {
+  var stored = localStorage.getItem('af_products');
+  if (stored) {
+    try { products = JSON.parse(stored); } catch(e) { products = SEED.slice(); }
+  } else {
+    products = SEED.map(function(p){ return Object.assign({},p,{images:[]}); });
+  }
   var sa = localStorage.getItem('af_about');
   if (sa) aboutText = sa;
   var av = localStorage.getItem('af_avatar');
   if (av) document.getElementById('about-avatar').innerHTML = '<img src="'+av+'" alt="Avatar">';
   document.getElementById('about-text-display').textContent = aboutText;
-  
-  // Check for valid admin token
-  var token = localStorage.getItem('af_admin_token');
-  var expiry = parseInt(localStorage.getItem('af_admin_expiry') || '0');
-  if (token && expiry > Date.now()) {
-    setAdminMode(true, false);
-  } else {
-    localStorage.removeItem('af_admin_token');
-    localStorage.removeItem('af_admin_expiry');
-  }
-  
+  if (localStorage.getItem('af_admin_session') === 'true') setAdminMode(true, false);
   renderLibrary(products);
   updateStatCount();
 }
 
-async function loadProductsFromDB() {
-  try {
-    var { data, error } = await supabase
-      .from('accessories')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error loading products:', error);
-      products = [];
-    } else {
-      // Map database fields to app format
-      products = (data || []).map(function(row) {
-        return {
-          id: row.id,
-          name: row.name,
-          category: row.category,
-          desc: row.description,
-          stlName: row.stl_name,
-          stlFile: row.stl_file,
-          images: row.images || [],
-          badge: row.badge
-        };
-      });
-    }
-  } catch (e) {
-    console.error('Error loading products:', e);
-    products = [];
-  }
-}
-
+function saveProducts() { localStorage.setItem('af_products', JSON.stringify(products)); }
 function updateStatCount() { 
   document.getElementById('stat-count').textContent = products.length;
   document.getElementById('stat-label').textContent = products.length === 1 ? 'Accessory' : 'Accessories';
@@ -447,58 +415,39 @@ function setAdminMode(on, persist) {
     bar.classList.add('visible');
     editBtn.style.display = 'block';
     grid.classList.add('admin-mode');
+    if (persist !== false) localStorage.setItem('af_admin_session','true');
   } else {
     btn.classList.remove('logged-in'); btn.textContent = '⚙ ADMIN';
     bar.classList.remove('visible');
     editBtn.style.display = 'none';
     grid.classList.remove('admin-mode');
+    if (persist !== false) localStorage.removeItem('af_admin_session');
   }
   // Re-render so delete badges appear/disappear
   filterProducts();
 }
 
 function handleAdminClick() {
-  if (isAdmin) { 
-    setAdminMode(false); 
-    localStorage.removeItem('af_admin_token');
-    localStorage.removeItem('af_admin_expiry');
-    showToast('Logged out of admin mode'); 
-  }
-  else { document.getElementById('login-modal-overlay').classList.add('open'); setTimeout(function(){ document.getElementById('login-password').focus(); },100); }
+  if (isAdmin) { setAdminMode(false); showToast('Logged out of admin mode'); }
+  else { document.getElementById('login-modal-overlay').classList.add('open'); setTimeout(function(){ document.getElementById('login-username').focus(); },100); }
 }
 
-async function doLogin() {
+function doLogin() {
+  var u = document.getElementById('login-username').value.trim();
   var p = document.getElementById('login-password').value;
-  if (!p) { showToast('Please enter password'); return; }
-  
-  try {
-    var res = await fetch(ADMIN_FUNCTIONS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: p })
-    });
-    var data = await res.json();
-    
-    if (data.success) {
-      localStorage.setItem('af_admin_token', data.token);
-      localStorage.setItem('af_admin_expiry', data.expiry);
-      closeLoginModal(); 
-      setAdminMode(true); 
-      showToast('✓ Logged in as admin');
-    } else {
-      var el = document.getElementById('login-password');
-      el.classList.add('input-error'); el.value = '';
-      setTimeout(function(){ el.classList.remove('input-error'); }, 2000);
-      showToast('Incorrect password');
-    }
-  } catch (e) {
-    console.error('Login error:', e);
-    showToast('Error connecting to server');
+  if (u === ADMIN_USER && p === ADMIN_PASS) {
+    closeLoginModal(); setAdminMode(true); showToast('✓ Logged in as admin');
+  } else {
+    var el = document.getElementById('login-password');
+    el.classList.add('input-error'); el.value = '';
+    setTimeout(function(){ el.classList.remove('input-error'); }, 2000);
+    showToast('Incorrect credentials');
   }
 }
 
 function closeLoginModal() {
   document.getElementById('login-modal-overlay').classList.remove('open');
+  document.getElementById('login-username').value = '';
   document.getElementById('login-password').value = '';
 }
 
@@ -510,33 +459,18 @@ function showInlineConfirm(card, id) {
   overlay.className = 'confirm-overlay';
   overlay.innerHTML = '<p>Remove this accessory?</p>'
     + '<div class="confirm-overlay-btns">'
-      + '<button class="confirm-yes" onclick="confirmDelete(\''+id+'\')">Yes, remove</button>'
+      + '<button class="confirm-yes" onclick="confirmDelete('+id+')">Yes, remove</button>'
       + '<button class="confirm-no" onclick="cancelDelete(this)">Cancel</button>'
     + '</div>';
   card.appendChild(overlay);
 }
 
-async function confirmDelete(id) {
-  try {
-    var { error } = await supabase
-      .from('accessories')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
-      console.error('Error deleting:', error);
-      showToast('Error removing accessory');
-      return;
-    }
-    
-    products = products.filter(function(x){ return x.id !== id; });
-    updateStatCount();
-    filterProducts();
-    showToast('Accessory removed');
-  } catch (e) {
-    console.error('Error deleting:', e);
-    showToast('Error removing accessory');
-  }
+function confirmDelete(id) {
+  products = products.filter(function(x){ return x.id !== id; });
+  saveProducts();
+  updateStatCount();
+  filterProducts();
+  showToast('Accessory removed');
 }
 
 function cancelDelete(btn) {
@@ -588,7 +522,7 @@ function renderLibrary(list) {
     var delBtn = t.closest('[data-del]');
     if (delBtn) {
       e.stopPropagation();
-      var id = delBtn.getAttribute('data-del');
+      var id = Number(delBtn.getAttribute('data-del'));
       var card = delBtn.closest('.product-card');
       showInlineConfirm(card, id);
       return;
@@ -597,14 +531,13 @@ function renderLibrary(list) {
     var editBtn = t.closest('[data-edit]');
     if (editBtn) {
       e.stopPropagation();
-      openEditModal(editBtn.getAttribute('data-edit'));
+      openEditModal(Number(editBtn.getAttribute('data-edit')));
       return;
     }
     // Open modal — only if not clicking on any admin badge
     var card = t.closest('.product-card');
     if (card && !t.closest('.delete-badge') && !t.closest('.edit-badge')) {
-      openProductModal(card.getAttribute('data-id'));
-    }
+      openProductModal(Number(card.getAttribute('data-id')));
     }
   };
 }
@@ -829,94 +762,48 @@ function handleSTLSelect(e) {
   reader.readAsDataURL(file);
 }
 
-async function submitProduct() {
+function submitProduct() {
   var name = document.getElementById('form-name').value.trim();
   var category = document.getElementById('form-category').value;
   var desc = document.getElementById('form-desc').value.trim();
   if (!name || !desc) { showToast('Please fill in name and description'); return; }
+  var price = 0;
 
-  try {
-    if (editProductId !== null) {
-      // Update existing product
-      var updateData = {
-        name: name,
-        category: category,
-        description: desc,
-        images: pendingImages.filter(Boolean)
-      };
-      if (pendingSTLName) updateData.stl_name = pendingSTLName;
-      if (pendingSTLData) updateData.stl_file = pendingSTLData;
-      
-      var { error } = await supabase
-        .from('accessories')
-        .update(updateData)
-        .eq('id', editProductId);
-      
-      if (error) {
-        console.error('Error updating:', error);
-        showToast('Error updating accessory');
-        return;
+  if (editProductId !== null) {
+    // Update existing product
+    for(var i=0;i<products.length;i++){
+      if(products[i].id === editProductId){
+        products[i].name = name;
+        products[i].category = category;
+        products[i].desc = desc;
+        products[i].price = price;
+        products[i].emoji = '';
+        if(pendingSTLName) products[i].stlName = pendingSTLName;
+        if(pendingSTLData) products[i].stlFile = pendingSTLData;
+        products[i].images = pendingImages.filter(Boolean);
+        break;
       }
-      
-      // Update local state
-      for(var i=0;i<products.length;i++){
-        if(products[i].id === editProductId){
-          products[i].name = name;
-          products[i].category = category;
-          products[i].desc = desc;
-          if(pendingSTLName) products[i].stlName = pendingSTLName;
-          if(pendingSTLData) products[i].stlFile = pendingSTLData;
-          products[i].images = pendingImages.filter(Boolean);
-          break;
-        }
-      }
-      closeUploadModal();
-      filterProducts();
-      showToast('"'+name+'" updated');
-    } else {
-      // New product
-      var insertData = {
-        name: name,
-        category: category,
-        description: desc,
-        stl_name: pendingSTLName || 'accessory.stl',
-        stl_file: pendingSTLData || null,
-        images: pendingImages.filter(Boolean),
-        badge: 'NEW'
-      };
-      
-      var { data, error } = await supabase
-        .from('accessories')
-        .insert(insertData)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Error inserting:', error);
-        showToast('Error adding accessory');
-        return;
-      }
-      
-      // Add to local state
-      var product = {
-        id: data.id,
-        name: data.name,
-        category: data.category,
-        desc: data.description,
-        stlName: data.stl_name,
-        stlFile: data.stl_file,
-        images: data.images || [],
-        badge: data.badge
-      };
-      products.unshift(product);
-      closeUploadModal();
-      updateStatCount();
-      filterProducts();
-      showToast('"'+name+'" published to library');
     }
-  } catch (e) {
-    console.error('Error saving product:', e);
-    showToast('Error saving accessory');
+    saveProducts();
+    closeUploadModal();
+    filterProducts();
+    showToast('"'+name+'" updated');
+  } else {
+    // New product
+    var product = {
+      id: Date.now(), name: name, category: category, desc: desc, price: price,
+      emoji: '',
+      stlName: pendingSTLName || 'accessory.stl',
+      stlFile: pendingSTLData || null,
+      images: pendingImages.filter(Boolean),
+      badge: 'NEW'
+    };
+    products.unshift(product);
+    saveProducts();
+    closeUploadModal();
+    updateStatCount();
+    filterProducts();
+    showToast('"'+name+'" published to library');
   }
 }
 
