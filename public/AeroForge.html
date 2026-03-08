@@ -389,7 +389,10 @@ function init() {
 }
 
 function saveProducts() { localStorage.setItem('af_products', JSON.stringify(products)); }
-function updateStatCount() { document.getElementById('stat-count').textContent = products.length; }
+function updateStatCount() { 
+  document.getElementById('stat-count').textContent = products.length;
+  document.getElementById('stat-label').textContent = products.length === 1 ? 'Accessory' : 'Accessories';
+}
 
 // ===== NAV =====
 function showPage(page) {
