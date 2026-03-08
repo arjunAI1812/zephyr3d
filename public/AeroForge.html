@@ -79,7 +79,8 @@
   .product-img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;}
   .product-img-placeholder{width:100%;aspect-ratio:4/3;background:linear-gradient(135deg,rgba(15,52,96,0.9),rgba(10,22,40,0.9));display:flex;align-items:center;justify-content:center;position:relative;}
   .product-img-placeholder::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 20px,rgba(184,212,232,0.02) 20px,rgba(184,212,232,0.02) 40px);}
-  .product-badge{position:absolute;top:40px;right:12px;background:var(--accent);color:var(--sky);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;padding:3px 8px;border-radius:2px;letter-spacing:1px;text-transform:uppercase;}
+  .product-badge{position:absolute;top:8px;right:12px;background:var(--accent);color:var(--sky);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;padding:3px 8px;border-radius:2px;letter-spacing:1px;text-transform:uppercase;z-index:5;transition:top .2s;}
+  .admin-mode .product-badge{top:40px;}
   /* delete badge: hidden by default, shown only when grid has admin-mode class */
   .delete-badge{position:absolute;top:8px;left:8px;background:var(--accent2);color:#fff;border:none;font-size:11px;font-weight:700;padding:4px 10px;border-radius:3px;cursor:pointer;z-index:10;display:none;}
   .admin-mode .delete-badge{display:block;}
