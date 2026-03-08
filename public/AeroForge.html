@@ -801,48 +801,94 @@ function handleSTLSelect(e) {
   reader.readAsDataURL(file);
 }
 
-function submitProduct() {
+async function submitProduct() {
   var name = document.getElementById('form-name').value.trim();
   var category = document.getElementById('form-category').value;
   var desc = document.getElementById('form-desc').value.trim();
   if (!name || !desc) { showToast('Please fill in name and description'); return; }
-  var price = 0;
 
-  if (editProductId !== null) {
-    // Update existing product
-    for(var i=0;i<products.length;i++){
-      if(products[i].id === editProductId){
-        products[i].name = name;
-        products[i].category = category;
-        products[i].desc = desc;
-        products[i].price = price;
-        products[i].emoji = '';
-        if(pendingSTLName) products[i].stlName = pendingSTLName;
-        if(pendingSTLData) products[i].stlFile = pendingSTLData;
-        products[i].images = pendingImages.filter(Boolean);
-        break;
+  try {
+    if (editProductId !== null) {
+      // Update existing product
+      var updateData = {
+        name: name,
+        category: category,
+        description: desc,
+        images: pendingImages.filter(Boolean)
+      };
+      if (pendingSTLName) updateData.stl_name = pendingSTLName;
+      if (pendingSTLData) updateData.stl_file = pendingSTLData;
+      
+      var { error } = await supabase
+        .from('accessories')
+        .update(updateData)
+        .eq('id', editProductId);
+      
+      if (error) {
+        console.error('Error updating:', error);
+        showToast('Error updating accessory');
+        return;
       }
+      
+      // Update local state
+      for(var i=0;i<products.length;i++){
+        if(products[i].id === editProductId){
+          products[i].name = name;
+          products[i].category = category;
+          products[i].desc = desc;
+          if(pendingSTLName) products[i].stlName = pendingSTLName;
+          if(pendingSTLData) products[i].stlFile = pendingSTLData;
+          products[i].images = pendingImages.filter(Boolean);
+          break;
+        }
+      }
+      closeUploadModal();
+      filterProducts();
+      showToast('"'+name+'" updated');
+    } else {
+      // New product
+      var insertData = {
+        name: name,
+        category: category,
+        description: desc,
+        stl_name: pendingSTLName || 'accessory.stl',
+        stl_file: pendingSTLData || null,
+        images: pendingImages.filter(Boolean),
+        badge: 'NEW'
+      };
+      
+      var { data, error } = await supabase
+        .from('accessories')
+        .insert(insertData)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error inserting:', error);
+        showToast('Error adding accessory');
+        return;
+      }
+      
+      // Add to local state
+      var product = {
+        id: data.id,
+        name: data.name,
+        category: data.category,
+        desc: data.description,
+        stlName: data.stl_name,
+        stlFile: data.stl_file,
+        images: data.images || [],
+        badge: data.badge
+      };
+      products.unshift(product);
+      closeUploadModal();
+      updateStatCount();
+      filterProducts();
+      showToast('"'+name+'" published to library');
     }
-    saveProducts();
-    closeUploadModal();
-    filterProducts();
-    showToast('"'+name+'" updated');
-  } else {
-    // New product
-    var product = {
-      id: Date.now(), name: name, category: category, desc: desc, price: price,
-      emoji: '',
-      stlName: pendingSTLName || 'accessory.stl',
-      stlFile: pendingSTLData || null,
-      images: pendingImages.filter(Boolean),
-      badge: 'NEW'
-    };
-    products.unshift(product);
-    saveProducts();
-    closeUploadModal();
-    updateStatCount();
-    filterProducts();
-    showToast('"'+name+'" published to library');
+  } catch (e) {
+    console.error('Error saving product:', e);
+    showToast('Error saving accessory');
   }
 }
 
