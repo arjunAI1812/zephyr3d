@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zephyr 3D — Plane Accessories</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -350,6 +351,11 @@ ZEPHYR 3D
 <div class="toast" id="toast"></div>
 
 <script>
+// ===== SUPABASE CLIENT =====
+var SUPABASE_URL = 'https://nutykurygqsstabxgaqj.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51dHlrdXJ5Z3Fzc3RhYnhnYXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NTM2NTcsImV4cCI6MjA4ODUyOTY1N30.4VOK32RNVNmKtILwCpZOxr5qST9rBwoetWaUDti3gT8';
+var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 // ===== STATE =====
 var isAdmin = false;
 var products = [];
@@ -361,16 +367,11 @@ var ADMIN_USER = 'admin';
 var ADMIN_PASS = 'aeroforge2024';
 var EMOJI_MAP = {'Landing Gear':'⚙','Cockpit':'✈','Propellers':'🔄','Airframe':'🔧','Electronics':'📡','Other':'✈'};
 
-var SEED = [];
-
 // ===== INIT =====
-function init() {
-  var stored = localStorage.getItem('af_products');
-  if (stored) {
-    try { products = JSON.parse(stored); } catch(e) { products = SEED.slice(); }
-  } else {
-    products = SEED.map(function(p){ return Object.assign({},p,{images:[]}); });
-  }
+async function init() {
+  // Load products from Supabase
+  await loadProductsFromDB();
+  
   var sa = localStorage.getItem('af_about');
   if (sa) aboutText = sa;
   var av = localStorage.getItem('af_avatar');
@@ -381,7 +382,37 @@ function init() {
   updateStatCount();
 }
 
-function saveProducts() { localStorage.setItem('af_products', JSON.stringify(products)); }
+async function loadProductsFromDB() {
+  try {
+    var { data, error } = await supabase
+      .from('accessories')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error loading products:', error);
+      products = [];
+    } else {
+      // Map database fields to app format
+      products = (data || []).map(function(row) {
+        return {
+          id: row.id,
+          name: row.name,
+          category: row.category,
+          desc: row.description,
+          stlName: row.stl_name,
+          stlFile: row.stl_file,
+          images: row.images || [],
+          badge: row.badge
+        };
+      });
+    }
+  } catch (e) {
+    console.error('Error loading products:', e);
+    products = [];
+  }
+}
+
 function updateStatCount() { 
   document.getElementById('stat-count').textContent = products.length;
   document.getElementById('stat-label').textContent = products.length === 1 ? 'Accessory' : 'Accessories';
@@ -452,18 +483,33 @@ function showInlineConfirm(card, id) {
   overlay.className = 'confirm-overlay';
   overlay.innerHTML = '<p>Remove this accessory?</p>'
     + '<div class="confirm-overlay-btns">'
-      + '<button class="confirm-yes" onclick="confirmDelete('+id+')">Yes, remove</button>'
+      + '<button class="confirm-yes" onclick="confirmDelete(\''+id+'\')">Yes, remove</button>'
       + '<button class="confirm-no" onclick="cancelDelete(this)">Cancel</button>'
     + '</div>';
   card.appendChild(overlay);
 }
 
-function confirmDelete(id) {
-  products = products.filter(function(x){ return x.id !== id; });
-  saveProducts();
-  updateStatCount();
-  filterProducts();
-  showToast('Accessory removed');
+async function confirmDelete(id) {
+  try {
+    var { error } = await supabase
+      .from('accessories')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting:', error);
+      showToast('Error removing accessory');
+      return;
+    }
+    
+    products = products.filter(function(x){ return x.id !== id; });
+    updateStatCount();
+    filterProducts();
+    showToast('Accessory removed');
+  } catch (e) {
+    console.error('Error deleting:', e);
+    showToast('Error removing accessory');
+  }
 }
 
 function cancelDelete(btn) {
@@ -515,7 +561,7 @@ function renderLibrary(list) {
     var delBtn = t.closest('[data-del]');
     if (delBtn) {
       e.stopPropagation();
-      var id = Number(delBtn.getAttribute('data-del'));
+      var id = delBtn.getAttribute('data-del');
       var card = delBtn.closest('.product-card');
       showInlineConfirm(card, id);
       return;
@@ -524,13 +570,14 @@ function renderLibrary(list) {
     var editBtn = t.closest('[data-edit]');
     if (editBtn) {
       e.stopPropagation();
-      openEditModal(Number(editBtn.getAttribute('data-edit')));
+      openEditModal(editBtn.getAttribute('data-edit'));
       return;
     }
     // Open modal — only if not clicking on any admin badge
     var card = t.closest('.product-card');
     if (card && !t.closest('.delete-badge') && !t.closest('.edit-badge')) {
-      openProductModal(Number(card.getAttribute('data-id')));
+      openProductModal(card.getAttribute('data-id'));
+    }
     }
   };
 }
@@ -755,48 +802,94 @@ function handleSTLSelect(e) {
   reader.readAsDataURL(file);
 }
 
-function submitProduct() {
+async function submitProduct() {
   var name = document.getElementById('form-name').value.trim();
   var category = document.getElementById('form-category').value;
   var desc = document.getElementById('form-desc').value.trim();
   if (!name || !desc) { showToast('Please fill in name and description'); return; }
-  var price = 0;
 
-  if (editProductId !== null) {
-    // Update existing product
-    for(var i=0;i<products.length;i++){
-      if(products[i].id === editProductId){
-        products[i].name = name;
-        products[i].category = category;
-        products[i].desc = desc;
-        products[i].price = price;
-        products[i].emoji = '';
-        if(pendingSTLName) products[i].stlName = pendingSTLName;
-        if(pendingSTLData) products[i].stlFile = pendingSTLData;
-        products[i].images = pendingImages.filter(Boolean);
-        break;
+  try {
+    if (editProductId !== null) {
+      // Update existing product
+      var updateData = {
+        name: name,
+        category: category,
+        description: desc,
+        images: pendingImages.filter(Boolean)
+      };
+      if (pendingSTLName) updateData.stl_name = pendingSTLName;
+      if (pendingSTLData) updateData.stl_file = pendingSTLData;
+      
+      var { error } = await supabase
+        .from('accessories')
+        .update(updateData)
+        .eq('id', editProductId);
+      
+      if (error) {
+        console.error('Error updating:', error);
+        showToast('Error updating accessory');
+        return;
       }
+      
+      // Update local state
+      for(var i=0;i<products.length;i++){
+        if(products[i].id === editProductId){
+          products[i].name = name;
+          products[i].category = category;
+          products[i].desc = desc;
+          if(pendingSTLName) products[i].stlName = pendingSTLName;
+          if(pendingSTLData) products[i].stlFile = pendingSTLData;
+          products[i].images = pendingImages.filter(Boolean);
+          break;
+        }
+      }
+      closeUploadModal();
+      filterProducts();
+      showToast('"'+name+'" updated');
+    } else {
+      // New product
+      var insertData = {
+        name: name,
+        category: category,
+        description: desc,
+        stl_name: pendingSTLName || 'accessory.stl',
+        stl_file: pendingSTLData || null,
+        images: pendingImages.filter(Boolean),
+        badge: 'NEW'
+      };
+      
+      var { data, error } = await supabase
+        .from('accessories')
+        .insert(insertData)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error inserting:', error);
+        showToast('Error adding accessory');
+        return;
+      }
+      
+      // Add to local state
+      var product = {
+        id: data.id,
+        name: data.name,
+        category: data.category,
+        desc: data.description,
+        stlName: data.stl_name,
+        stlFile: data.stl_file,
+        images: data.images || [],
+        badge: data.badge
+      };
+      products.unshift(product);
+      closeUploadModal();
+      updateStatCount();
+      filterProducts();
+      showToast('"'+name+'" published to library');
     }
-    saveProducts();
-    closeUploadModal();
-    filterProducts();
-    showToast('"'+name+'" updated');
-  } else {
-    // New product
-    var product = {
-      id: Date.now(), name: name, category: category, desc: desc, price: price,
-      emoji: '',
-      stlName: pendingSTLName || 'accessory.stl',
-      stlFile: pendingSTLData || null,
-      images: pendingImages.filter(Boolean),
-      badge: 'NEW'
-    };
-    products.unshift(product);
-    saveProducts();
-    closeUploadModal();
-    updateStatCount();
-    filterProducts();
-    showToast('"'+name+'" published to library');
+  } catch (e) {
+    console.error('Error saving product:', e);
+    showToast('Error saving accessory');
   }
 }
 
