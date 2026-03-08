@@ -375,7 +375,17 @@ async function init() {
   var av = localStorage.getItem('af_avatar');
   if (av) document.getElementById('about-avatar').innerHTML = '<img src="'+av+'" alt="Avatar">';
   document.getElementById('about-text-display').textContent = aboutText;
-  if (localStorage.getItem('af_admin_session') === 'true') setAdminMode(true, false);
+  
+  // Check for valid admin token
+  var token = localStorage.getItem('af_admin_token');
+  var expiry = parseInt(localStorage.getItem('af_admin_expiry') || '0');
+  if (token && expiry > Date.now()) {
+    setAdminMode(true, false);
+  } else {
+    localStorage.removeItem('af_admin_token');
+    localStorage.removeItem('af_admin_expiry');
+  }
+  
   renderLibrary(products);
   updateStatCount();
 }
