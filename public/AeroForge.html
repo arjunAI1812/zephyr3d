@@ -357,13 +357,14 @@ var currentModalProduct = null;
 var modalGalleryIndex = 0;
 var aboutText = "Hi! I'm a passionate RC plane designer and maker. I've been designing 3D-printable accessories for fixed-wing aircraft for over 5 years.\n\nEvery part in this library has been flight-tested and optimised for FDM printing. I focus on functional design — parts that are lightweight, strong, and easy to assemble.\n\nMy designs range from scale cockpit details to functional landing gear, servo mounts, and propeller guards. All files are print-ready with supports pre-configured.\n\nFeel free to reach out if you need custom parts for your specific airframe!";
 
-var ADMIN_USER = 'admin';
-var ADMIN_PASS = 'aeroforge2024';
 var EMOJI_MAP = {'Landing Gear':'⚙','Cockpit':'✈','Propellers':'🔄','Airframe':'🔧','Electronics':'📡','Other':'✈'};
 
 // Supabase configuration
 var SUPABASE_URL = 'https://nutykurygqsstabxgaqj.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51dHlrdXJ5Z3Fzc3RhYnhnYXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NTM2NTcsImV4cCI6MjA4ODUyOTY1N30.4VOK32RNVNmKtILwCpZOxr5qST9rBwoetWaUDti3gT8';
+
+// Admin password stored in session (verified server-side)
+var adminPassword = null;
 
 // ===== INIT =====
 async function init() {
@@ -375,7 +376,14 @@ async function init() {
   var av = localStorage.getItem('af_avatar');
   if (av) document.getElementById('about-avatar').innerHTML = '<img src="'+av+'" alt="Avatar">';
   document.getElementById('about-text-display').textContent = aboutText;
-  if (localStorage.getItem('af_admin_session') === 'true') setAdminMode(true, false);
+  
+  // Check for stored admin session - will be verified on first admin action
+  var storedPass = sessionStorage.getItem('af_admin_pass');
+  if (storedPass) {
+    adminPassword = storedPass;
+    setAdminMode(true, false);
+  }
+  
   renderLibrary(products);
   updateStatCount();
 }
@@ -412,7 +420,13 @@ async function loadProductsFromSupabase() {
   }
 }
 
+// Admin operations go through secure edge function
 async function saveProductToSupabase(product) {
+  if (!adminPassword) {
+    showToast('Admin authentication required');
+    return false;
+  }
+  
   var payload = {
     name: product.name,
     category: product.category,
@@ -423,51 +437,72 @@ async function saveProductToSupabase(product) {
     badge: product.badge || null
   };
   
-  // Check if product exists (update) or is new (insert)
-  if (typeof product.id === 'string' && product.id.length > 10) {
-    // UUID - existing product, update
-    var response = await fetch(SUPABASE_URL + '/rest/v1/accessories?id=eq.' + product.id, {
-      method: 'PATCH',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify(payload)
-    });
-    return response.ok;
-  } else {
-    // New product, insert
-    var response = await fetch(SUPABASE_URL + '/rest/v1/accessories', {
+  var isUpdate = typeof product.id === 'string' && product.id.length > 10;
+  
+  try {
+    var response = await fetch(SUPABASE_URL + '/functions/v1/admin-accessory', {
       method: 'POST',
       headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
         'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
+        'x-admin-password': adminPassword
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        action: isUpdate ? 'update' : 'insert',
+        id: isUpdate ? product.id : null,
+        data: payload
+      })
     });
-    if (response.ok) {
-      var data = await response.json();
-      if (data && data[0]) {
-        product.id = data[0].id; // Update local product with the new UUID
-      }
+    
+    if (response.status === 401) {
+      showToast('Invalid admin password');
+      setAdminMode(false);
+      return false;
     }
-    return response.ok;
+    
+    if (response.ok) {
+      var result = await response.json();
+      if (result.data && result.data.id) {
+        product.id = result.data.id;
+      }
+      return true;
+    }
+    return false;
+  } catch(e) {
+    console.error('Error saving product:', e);
+    return false;
   }
 }
 
 async function deleteProductFromSupabase(id) {
-  var response = await fetch(SUPABASE_URL + '/rest/v1/accessories?id=eq.' + id, {
-    method: 'DELETE',
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY
+  if (!adminPassword) {
+    showToast('Admin authentication required');
+    return false;
+  }
+  
+  try {
+    var response = await fetch(SUPABASE_URL + '/functions/v1/admin-accessory', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-password': adminPassword
+      },
+      body: JSON.stringify({
+        action: 'delete',
+        id: id
+      })
+    });
+    
+    if (response.status === 401) {
+      showToast('Invalid admin password');
+      setAdminMode(false);
+      return false;
     }
-  });
-  return response.ok;
+    
+    return response.ok;
+  } catch(e) {
+    console.error('Error deleting product:', e);
+    return false;
+  }
 }
 
 function saveProducts() { /* No longer using localStorage for products - all synced via Supabase */ }
