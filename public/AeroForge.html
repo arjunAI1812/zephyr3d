@@ -450,8 +450,13 @@ function setAdminMode(on, persist) {
 }
 
 function handleAdminClick() {
-  if (isAdmin) { setAdminMode(false); showToast('Logged out of admin mode'); }
-  else { document.getElementById('login-modal-overlay').classList.add('open'); setTimeout(function(){ document.getElementById('login-username').focus(); },100); }
+  if (isAdmin) { 
+    setAdminMode(false); 
+    localStorage.removeItem('af_admin_token');
+    localStorage.removeItem('af_admin_expiry');
+    showToast('Logged out of admin mode'); 
+  }
+  else { document.getElementById('login-modal-overlay').classList.add('open'); setTimeout(function(){ document.getElementById('login-password').focus(); },100); }
 }
 
 async function doLogin() {
