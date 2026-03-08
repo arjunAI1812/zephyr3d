@@ -46,10 +46,8 @@
   .hero h1 span{color:var(--accent);}
   .hero p{font-size:16px;color:var(--muted);max-width:480px;line-height:1.7;animation:fadeUp .8s ease .2s both;margin-bottom:40px;}
   .hero-btns{display:flex;gap:16px;animation:fadeUp .8s ease .3s both;}
-  .btn-primary{background:var(--accent);color:var(--sky);border:none;font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;padding:14px 32px;border-radius:var(--radius);cursor:pointer;transition:all .2s;}
-  .btn-primary:hover{background:#f0b030;transform:translateY(-2px);box-shadow:0 8px 24px rgba(232,160,32,.3);}
-  .btn-secondary{background:none;color:var(--steel);border:1px solid var(--border);font-family:'DM Sans',sans-serif;font-weight:500;font-size:14px;padding:14px 32px;border-radius:var(--radius);cursor:pointer;transition:all .2s;}
-  .btn-secondary:hover{border-color:var(--steel);color:var(--white);}
+  .btn-primary,.btn-secondary{background:none;color:var(--steel);border:1px solid var(--border);font-family:'DM Sans',sans-serif;font-weight:500;font-size:14px;padding:14px 32px;border-radius:var(--radius);cursor:pointer;transition:all .2s;}
+  .btn-primary:hover,.btn-secondary:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 24px rgba(232,160,32,.3);}
   .hero-stats{display:flex;gap:60px;margin-top:80px;padding-top:40px;border-top:1px solid var(--border);animation:fadeUp .8s ease .4s both;}
   .stat{text-align:center;}
   .stat-num{font-family:'Bebas Neue',sans-serif;font-size:40px;color:var(--accent);letter-spacing:2px;}
