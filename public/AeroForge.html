@@ -338,9 +338,8 @@ ZEPHYR 3D
 <div class="login-modal-overlay" id="login-modal-overlay" onclick="if(event.target===this)closeLoginModal()">
   <div class="login-modal">
     <h3>ADMIN LOGIN</h3>
-    <p>Sign in to manage your accessories and edit the about page.</p>
+    <p>Enter your admin password to manage accessories.</p>
     <div class="login-form">
-      <input class="form-input" type="text" id="login-username" placeholder="Username" autocomplete="off">
       <input class="form-input" type="password" id="login-password" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
       <button class="login-btn" onclick="doLogin()">Sign In</button>
       <button class="login-cancel" onclick="closeLoginModal()">Cancel</button>
