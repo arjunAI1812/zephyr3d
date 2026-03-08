@@ -222,7 +222,7 @@ ZEPHYR 3D
       <button class="btn-secondary" onclick="showPage('about')">About the Maker</button>
     </div>
     <div class="hero-stats">
-      <div class="stat"><div class="stat-num" id="stat-count">0</div><div class="stat-label">Accessories</div></div>
+      <div class="stat"><div class="stat-num" id="stat-count">0</div><div class="stat-label" id="stat-label">Accessories</div></div>
       <div class="stat"><div class="stat-num">STL</div><div class="stat-label">File Format</div></div>
       <div class="stat"><div class="stat-num">FDM</div><div class="stat-label">Print Ready</div></div>
     </div>
@@ -389,7 +389,10 @@ function init() {
 }
 
 function saveProducts() { localStorage.setItem('af_products', JSON.stringify(products)); }
-function updateStatCount() { document.getElementById('stat-count').textContent = products.length; }
+function updateStatCount() { 
+  document.getElementById('stat-count').textContent = products.length;
+  document.getElementById('stat-label').textContent = products.length === 1 ? 'Accessory' : 'Accessories';
+}
 
 // ===== NAV =====
 function showPage(page) {
