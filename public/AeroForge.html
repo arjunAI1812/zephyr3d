@@ -541,18 +541,22 @@ function showInlineConfirm(card, id) {
   overlay.className = 'confirm-overlay';
   overlay.innerHTML = '<p>Remove this accessory?</p>'
     + '<div class="confirm-overlay-btns">'
-      + '<button class="confirm-yes" onclick="confirmDelete('+id+')">Yes, remove</button>'
+      + '<button class="confirm-yes" onclick="confirmDelete(\''+id+'\')">Yes, remove</button>'
       + '<button class="confirm-no" onclick="cancelDelete(this)">Cancel</button>'
     + '</div>';
   card.appendChild(overlay);
 }
 
-function confirmDelete(id) {
-  products = products.filter(function(x){ return x.id !== id; });
-  saveProducts();
-  updateStatCount();
-  filterProducts();
-  showToast('Accessory removed');
+async function confirmDelete(id) {
+  var success = await deleteProductFromSupabase(id);
+  if (success) {
+    products = products.filter(function(x){ return x.id !== id; });
+    updateStatCount();
+    filterProducts();
+    showToast('Accessory removed');
+  } else {
+    showToast('Failed to remove accessory');
+  }
 }
 
 function cancelDelete(btn) {
