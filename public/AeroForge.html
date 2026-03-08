@@ -790,7 +790,7 @@ function submitProduct() {
     // New product
     var product = {
       id: Date.now(), name: name, category: category, desc: desc, price: price,
-      emoji: EMOJI_MAP[category] || '✈',
+      emoji: '',
       stlName: pendingSTLName || 'accessory.stl',
       stlFile: pendingSTLData || null,
       images: pendingImages.filter(Boolean),
