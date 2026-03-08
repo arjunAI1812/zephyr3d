@@ -532,13 +532,13 @@ function setAdminMode(on, persist) {
     bar.classList.add('visible');
     editBtn.style.display = 'block';
     grid.classList.add('admin-mode');
-    if (persist !== false) localStorage.setItem('af_admin_session','true');
   } else {
     btn.classList.remove('logged-in'); btn.textContent = '⚙ ADMIN';
     bar.classList.remove('visible');
     editBtn.style.display = 'none';
     grid.classList.remove('admin-mode');
-    if (persist !== false) localStorage.removeItem('af_admin_session');
+    adminPassword = null;
+    sessionStorage.removeItem('af_admin_pass');
   }
   // Re-render so delete badges appear/disappear
   filterProducts();
@@ -546,19 +546,44 @@ function setAdminMode(on, persist) {
 
 function handleAdminClick() {
   if (isAdmin) { setAdminMode(false); showToast('Logged out of admin mode'); }
-  else { document.getElementById('login-modal-overlay').classList.add('open'); setTimeout(function(){ document.getElementById('login-username').focus(); },100); }
+  else { document.getElementById('login-modal-overlay').classList.add('open'); setTimeout(function(){ document.getElementById('login-password').focus(); },100); }
 }
 
-function doLogin() {
-  var u = document.getElementById('login-username').value.trim();
+async function doLogin() {
   var p = document.getElementById('login-password').value;
-  if (u === ADMIN_USER && p === ADMIN_PASS) {
-    closeLoginModal(); setAdminMode(true); showToast('✓ Logged in as admin');
-  } else {
-    var el = document.getElementById('login-password');
-    el.classList.add('input-error'); el.value = '';
-    setTimeout(function(){ el.classList.remove('input-error'); }, 2000);
-    showToast('Incorrect credentials');
+  if (!p) {
+    showToast('Please enter the admin password');
+    return;
+  }
+  
+  // Verify password by making a test request to the edge function
+  try {
+    var response = await fetch(SUPABASE_URL + '/functions/v1/admin-accessory', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-password': p
+      },
+      body: JSON.stringify({ action: 'verify' })
+    });
+    
+    if (response.status === 401) {
+      var el = document.getElementById('login-password');
+      el.classList.add('input-error'); el.value = '';
+      setTimeout(function(){ el.classList.remove('input-error'); }, 2000);
+      showToast('Incorrect password');
+      return;
+    }
+    
+    // Password valid - store it and enable admin mode
+    adminPassword = p;
+    sessionStorage.setItem('af_admin_pass', p);
+    closeLoginModal();
+    setAdminMode(true);
+    showToast('✓ Logged in as admin');
+  } catch(e) {
+    console.error('Login error:', e);
+    showToast('Login failed - please try again');
   }
 }
 
