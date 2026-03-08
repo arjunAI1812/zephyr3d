@@ -848,48 +848,59 @@ function handleSTLSelect(e) {
   reader.readAsDataURL(file);
 }
 
-function submitProduct() {
+async function submitProduct() {
   var name = document.getElementById('form-name').value.trim();
   var category = document.getElementById('form-category').value;
   var desc = document.getElementById('form-desc').value.trim();
   if (!name || !desc) { showToast('Please fill in name and description'); return; }
-  var price = 0;
 
   if (editProductId !== null) {
     // Update existing product
+    var productToUpdate = null;
     for(var i=0;i<products.length;i++){
       if(products[i].id === editProductId){
         products[i].name = name;
         products[i].category = category;
         products[i].desc = desc;
-        products[i].price = price;
-        products[i].emoji = '';
         if(pendingSTLName) products[i].stlName = pendingSTLName;
         if(pendingSTLData) products[i].stlFile = pendingSTLData;
         products[i].images = pendingImages.filter(Boolean);
+        productToUpdate = products[i];
         break;
       }
     }
-    saveProducts();
-    closeUploadModal();
-    filterProducts();
-    showToast('"'+name+'" updated');
+    if (productToUpdate) {
+      var success = await saveProductToSupabase(productToUpdate);
+      if (success) {
+        closeUploadModal();
+        filterProducts();
+        showToast('"'+name+'" updated');
+      } else {
+        showToast('Failed to update accessory');
+      }
+    }
   } else {
     // New product
     var product = {
-      id: Date.now(), name: name, category: category, desc: desc, price: price,
-      emoji: '',
+      id: null, // Will be set by Supabase
+      name: name,
+      category: category,
+      desc: desc,
       stlName: pendingSTLName || 'accessory.stl',
       stlFile: pendingSTLData || null,
       images: pendingImages.filter(Boolean),
       badge: 'NEW'
     };
-    products.unshift(product);
-    saveProducts();
-    closeUploadModal();
-    updateStatCount();
-    filterProducts();
-    showToast('"'+name+'" published to library');
+    var success = await saveProductToSupabase(product);
+    if (success) {
+      products.unshift(product);
+      closeUploadModal();
+      updateStatCount();
+      filterProducts();
+      showToast('"'+name+'" published to library');
+    } else {
+      showToast('Failed to publish accessory');
+    }
   }
 }
 
