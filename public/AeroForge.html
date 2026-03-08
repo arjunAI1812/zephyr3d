@@ -351,6 +351,11 @@ ZEPHYR 3D
 <div class="toast" id="toast"></div>
 
 <script>
+// ===== SUPABASE CLIENT =====
+var SUPABASE_URL = 'https://nutykurygqsstabxgaqj.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51dHlrdXJ5Z3Fzc3RhYnhnYXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NTM2NTcsImV4cCI6MjA4ODUyOTY1N30.4VOK32RNVNmKtILwCpZOxr5qST9rBwoetWaUDti3gT8';
+var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 // ===== STATE =====
 var isAdmin = false;
 var products = [];
@@ -362,16 +367,11 @@ var ADMIN_USER = 'admin';
 var ADMIN_PASS = 'aeroforge2024';
 var EMOJI_MAP = {'Landing Gear':'⚙','Cockpit':'✈','Propellers':'🔄','Airframe':'🔧','Electronics':'📡','Other':'✈'};
 
-var SEED = [];
-
 // ===== INIT =====
-function init() {
-  var stored = localStorage.getItem('af_products');
-  if (stored) {
-    try { products = JSON.parse(stored); } catch(e) { products = SEED.slice(); }
-  } else {
-    products = SEED.map(function(p){ return Object.assign({},p,{images:[]}); });
-  }
+async function init() {
+  // Load products from Supabase
+  await loadProductsFromDB();
+  
   var sa = localStorage.getItem('af_about');
   if (sa) aboutText = sa;
   var av = localStorage.getItem('af_avatar');
@@ -382,7 +382,37 @@ function init() {
   updateStatCount();
 }
 
-function saveProducts() { localStorage.setItem('af_products', JSON.stringify(products)); }
+async function loadProductsFromDB() {
+  try {
+    var { data, error } = await supabase
+      .from('accessories')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error loading products:', error);
+      products = [];
+    } else {
+      // Map database fields to app format
+      products = (data || []).map(function(row) {
+        return {
+          id: row.id,
+          name: row.name,
+          category: row.category,
+          desc: row.description,
+          stlName: row.stl_name,
+          stlFile: row.stl_file,
+          images: row.images || [],
+          badge: row.badge
+        };
+      });
+    }
+  } catch (e) {
+    console.error('Error loading products:', e);
+    products = [];
+  }
+}
+
 function updateStatCount() { 
   document.getElementById('stat-count').textContent = products.length;
   document.getElementById('stat-label').textContent = products.length === 1 ? 'Accessory' : 'Accessories';
