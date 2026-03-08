@@ -92,6 +92,14 @@ Deno.serve(async (req) => {
       )
     }
 
+    if (action === 'verify') {
+      // Just verify the password is correct (already checked above)
+      return new Response(
+        JSON.stringify({ success: true, message: 'Password verified' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     return new Response(
       JSON.stringify({ error: 'Invalid action' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
