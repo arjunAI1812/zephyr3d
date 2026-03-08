@@ -494,7 +494,7 @@ function renderLibrary(list) {
     var firstImg = (p.images && p.images.length > 0) ? p.images[0] : null;
     var imgHTML = firstImg
       ? '<img class="product-img" src="'+firstImg+'" alt="'+p.name+'">'
-      : '<div class="product-img-placeholder"><span style="position:relative;z-index:1;font-size:56px">'+p.emoji+'</span></div>';
+      : '<div class="product-img-placeholder"><span style="position:relative;z-index:1;font-size:14px;color:var(--muted);font-family:JetBrains Mono,monospace;letter-spacing:2px;text-transform:uppercase;">'+p.category+'</span></div>';
     var badgeHTML = p.badge ? '<div class="product-badge">'+p.badge+'</div>' : '';
     html += '<div class="product-card" data-id="'+p.id+'">'
       + '<button class="delete-badge" data-del="'+p.id+'">&#10005; Remove</button>'
